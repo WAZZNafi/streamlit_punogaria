@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
-import cv2
 from PIL import Image
 from io import BytesIO
 import time
@@ -21,7 +20,7 @@ Pompa akan **MENYALA** jika:
 
 # IP Kamera & ESP32 (ganti sesuai milikmu)
 camera_url = "http://192.168.180.196/capture"
-esp32_url = "http://192.168.180.203"  # Ganti sesuai IP ESP32 kamu
+esp32_url = "http://192.168.180.203"
 
 # ========== Fungsi Ambil Data Sensor dari ESP32 ==========
 def ambil_data_dari_esp32():
@@ -39,24 +38,24 @@ def ambil_data_dari_esp32():
         st.error(f"Error ambil data dari ESP32: {e}")
         return None, None
 
-# ========== Fungsi Deteksi Cuaca dari Kamera ==========
+# ========== Fungsi Deteksi Cuaca dari Kamera (Tanpa OpenCV) ==========
 def deteksi_langit_dari_kamera(url):
     try:
         response = requests.get(url, timeout=5)
-        img = Image.open(BytesIO(response.content))
+        img = Image.open(BytesIO(response.content)).convert("RGB")
         img_np = np.array(img)
 
         tinggi, lebar, _ = img_np.shape
         potongan_langit = img_np[0:int(tinggi * 0.3), :, :]
 
-        hsv = cv2.cvtColor(potongan_langit, cv2.COLOR_RGB2HSV)
-        brightness = hsv[:, :, 2].mean()
-        hue = hsv[:, :, 0].mean()
-        saturation = hsv[:, :, 1].mean()
+        brightness = potongan_langit.mean()
+        r_mean = potongan_langit[:, :, 0].mean()
+        g_mean = potongan_langit[:, :, 1].mean()
+        b_mean = potongan_langit[:, :, 2].mean()
 
-        if brightness > 180 and saturation < 60:
+        if brightness > 180 and abs(r_mean - b_mean) < 20:
             return "Cerah ☀️"
-        elif brightness > 100 and saturation < 100:
+        elif brightness > 100:
             return "Berawan ⛅"
         else:
             return "Mendung / Mau Hujan 🌧️"
